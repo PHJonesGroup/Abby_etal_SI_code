@@ -1,0 +1,3 @@
+[submodule "targeted_het_snp_imbalance"]
+	path = targeted_het_snp_imbalance
+	url = https://github.com/sdentro/targeted_het_snp_imbalance
