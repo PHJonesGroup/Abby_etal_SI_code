@@ -1,3 +1,6 @@
 [submodule "targeted_het_snp_imbalance"]
 	path = targeted_het_snp_imbalance
 	url = https://github.com/sdentro/targeted_het_snp_imbalance
+[submodule "qdnaseq_pipeline"]
+	path = qdnaseq_pipeline
+	url = https://github.com/sdentro/qdnaseq_pipeline
