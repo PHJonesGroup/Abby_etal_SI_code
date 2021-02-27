@@ -4,3 +4,6 @@
 [submodule "qdnaseq_pipeline"]
 	path = qdnaseq_pipeline
 	url = https://github.com/sdentro/qdnaseq_pipeline
+[submodule "QDNAseq"]
+	path = QDNAseq
+	url = git@github.com:sdentro/QDNAseq.git
