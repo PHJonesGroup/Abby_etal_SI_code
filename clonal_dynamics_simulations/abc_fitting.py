@@ -108,7 +108,7 @@ def _read_basal_counts_column(col):
 def load_data(target_data, data_file):
     target_data = target_data.lower()
     if target_data == 'wt':
-        cols = "C,E,F,I,K"
+        cols = "C,E,G,I,K"
         times = [10, 14, 28, 63, 91]
     elif target_data == 'het':
         cols = "M,O,Q,S"
