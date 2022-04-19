@@ -12,3 +12,4 @@ From the manuscript titled *Notch1 mutation drives clonal expansion in normal es
 | qdnaseq_pipeline | Pipeline scripts used to obtain total copy number calls |
 | scRNAseq | R markdown notebook containing analysis of scRNAseq data |
 | targeted_het_snp_imbalance | Pipeline to call b-allele frequency imbalance from heterozygous SNPs |
+| clonal_dynamics_simulations | Python scripts for simulations of Notch1 clonal dynamics|
