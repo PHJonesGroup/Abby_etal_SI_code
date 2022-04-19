@@ -1,0 +1,124 @@
+---
+title: "milo run"
+output: 
+  html_document:
+    toc: yes
+  html_notebook:
+    theme: united
+    toc: yes
+---
+
+```{r}
+fileprefix = "20210717_"
+
+set.seed(123)
+
+# This is required to set the fonts of the paper plots to Arial
+library(extrafont)
+font_import(prompt=FALSE)
+loadfonts()
+
+library(RColorBrewer)
+library(Seurat)
+library(scater)
+library(cowplot)
+library(dplyr)
+library(tidyr)
+library(SoupX)
+
+theme_publication_plot = function(p, legend_title, legend_aes=4) {
+  p = p +
+  theme_cowplot() + 
+  theme(axis.text = element_text(family="Arial", colour="black",size=10,face="plain"),
+                       axis.title = element_text(family="Arial", colour="black",size=12,face="plain"),
+                       strip.text.x = element_text(family="Arial", colour="black",size=12,face="plain", angle=90),
+                       strip.text.y = element_text(family="Arial", colour="black",size=12,face="plain", angle=360),
+                       strip.background = element_blank(),
+                       panel.spacing.x = unit(1, "mm"),
+                       panel.spacing.y = unit(3, "mm"),
+                       plot.title = element_text(family="Arial", colour="black",size=12,face="plain",hjust = 0.5))
+  if (!is.null(legend_title)) {
+     p = p + guides(fill = guide_legend(title=legend_title,
+                              override.aes = list(size=legend_aes)),
+                            colour = guide_legend(title=legend_title,
+                              override.aes = list(size=legend_aes)))
+  }
+  return(p)
+}
+```
+
+```{r}
+load(paste0(fileprefix, "notch1_keratinocytes_batch_effect_with_filter_with_adjustment.RData"))
+```
+
+```{r}
+library(miloR)
+library(SingleCellExperiment)
+library(patchwork)
+library(statmod)
+
+# Milo pipeline adapted from Milo demo: https://marionilab.github.io/miloR/articles/milo_demo.html
+run_milo = function(seu_kera_integrated, k) {
+  # Reduce the Seurat object to just the essentials
+  seu_kera_diet <- DietSeurat(seu_kera_integrated, graphs = c("pca", "umap"))
+  kera_sce <- as.SingleCellExperiment(seu_kera_diet)
+  traj_milo <- Milo(kera_sce)
+  # Set condition to KO / WT, which is what we'll test lateron
+  colData(traj_milo)$condition = gsub(" 2", "", gsub(" 1", "", colData(traj_milo)$library))
+  
+  traj_milo <- buildGraph(traj_milo, k = k, d = 30)
+  traj_milo <- makeNhoods(traj_milo, prop = 0.1, k = k, d=30, refined = TRUE)
+  traj_milo <- countCells(traj_milo, meta.data = data.frame(colData(traj_milo)), sample="library")
+  
+  traj_design <- data.frame(colData(traj_milo))[,c("library", "condition")]
+  traj_design <- distinct(traj_design)
+  rownames(traj_design) = traj_design$library
+  traj_design = traj_design[4:1,]
+  
+  traj_milo <- calcNhoodDistance(traj_milo, d=30)
+  da_results <- testNhoods(traj_milo, design = ~ condition, design.df = traj_design)
+  
+  traj_milo <- buildNhoodGraph(traj_milo)
+  p = plotNhoodGraphDA(traj_milo, da_results, alpha=0.05) +
+    plot_layout(guides="collect")
+  return(list(plot=p, traj_milo=traj_milo, da_results=da_results))
+}
+```
+
+Authors of Milo recommend a peak in neighbourhood size between 50 and a 100 to maximise statistical power, setting k to 30 puts the peak between 50 and 75 and the majority of the distribution between 50 and 100.
+```{r}
+res_30 = run_milo(seu_kera_integrated, 30)
+plotNhoodSizeHist(res_30$traj_milo)
+p = res_30$p
+p = theme_publication_plot(p, NULL) + xlab("UMAP 1") + ylab("UMAP 2")
+print(p)
+cowplot::save_plot(plot=p,
+                   filename = paste0(fileprefix, "milo_kera_k30.pdf"),
+                   base_height=6, #6
+                   base_width=9) #12
+```
+The Milo results yield no significant different neighbourhoods
+
+Finally, as a comparison, perform a test on the library counts per cluster
+
+```{r}
+cluster_counts = list()
+for (cluster in unique(seu_kera_integrated@meta.data$seurat_clusters)) {
+  res = seu_kera_integrated@meta.data[seu_kera_integrated@meta.data$seurat_clusters==cluster,] %>% group_by(library) %>% summarise(n=n())
+  new_res = data.frame(library=c("1", "2"), n_ko=res$n[grepl("KO", res$library)], n_wt=res$n[grepl("WT", res$library)])
+  new_res$cluster = cluster
+  
+  new_res$p_wilcox = wilcox.test(new_res$n_ko, new_res$n_wt, paired=T, alternative="two.sided")$p.value
+  new_res$p_ttest = t.test(new_res$n_ko, new_res$n_wt, paired=T, alternative="two.sided")$p.value
+  cluster_counts[[cluster]] = new_res
+}
+cluster_counts = do.call(rbind, cluster_counts)
+cluster_counts = unique(cluster_counts[, c("cluster", "p_wilcox", "p_ttest")])
+cluster_counts = cluster_counts[order(cluster_counts$cluster),]
+print(cluster_counts)
+```
+Also here nothing is significant
+
+```{r}
+sessionInfo()
+```
